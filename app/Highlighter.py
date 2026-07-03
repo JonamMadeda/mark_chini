@@ -65,14 +65,14 @@ class MarkdownHighlighter(QSyntaxHighlighter):
             r"^[ ]{0,3}[-*+][ ].*$",
             QRegularExpression.PatternOption.MultilineOption,
         )
-        fmtUl = self._makeFormat("#34d399")
+        fmtUl = self._makeFormat("#FBBF24")
         self._rules.append((ulPat, fmtUl))
 
         olPat = QRegularExpression(
             r"^[ ]{0,3}\d+\.[ ].*$",
             QRegularExpression.PatternOption.MultilineOption,
         )
-        fmtOl = self._makeFormat("#34d399")
+        fmtOl = self._makeFormat("#FBBF24")
         self._rules.append((olPat, fmtOl))
 
         quotePat = QRegularExpression(

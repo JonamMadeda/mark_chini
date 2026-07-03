@@ -167,13 +167,13 @@ class MarkdownConverter:
         )
         if darkMode:
             bg, fg, hc, bc, cc, cb, lnk, bq_b, bq_c = (
-                "#0b0f19", "#f8fafc", "#818cf8", "#1e293b",
-                "#94a3b8", "#111827", "#818cf8", "#4f46e5", "#94a3b8",
+                "#0b0f19", "#f8fafc", "#F87171", "#1e293b",
+                "#94a3b8", "#111827", "#EF4444", "#DC2626", "#94a3b8",
             )
         else:
             bg, fg, hc, bc, cc, cb, lnk, bq_b, bq_c = (
-                "#ffffff", "#0f172a", "#4f46e5", "#e2e8f0",
-                "#475569", "#f1f5f9", "#4f46e5", "#6366f1", "#475569",
+                "#ffffff", "#0f172a", "#DC2626", "#e2e8f0",
+                "#475569", "#f1f5f9", "#DC2626", "#DC2626", "#475569",
             )
         return f"""<!DOCTYPE html>
 <html lang="en">
