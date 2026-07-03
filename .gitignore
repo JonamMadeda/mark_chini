@@ -1,0 +1,19 @@
+# Build
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment
+.env
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
