@@ -7,7 +7,7 @@
 [Setup]
 AppId=mark_chini
 AppName=mark_chini
-AppVersion=1.3.0
+AppVersion=1.4.0
 AppPublisher=JonamMadeda
 AppPublisherURL=https://github.com/JonamMadeda/mark_chini
 DefaultDirName={autopf}\mark_chini

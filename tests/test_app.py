@@ -708,10 +708,12 @@ class TestPreviewIntegration:
         html = main_window._preview.toHtml()
         assert "bold" in html
 
-    def test_preview_dark_mode_renders_dark_bg(self, main_window, qtbot):
-        main_window._editor.setPlainText("dark test")
+    def test_preview_light_mode_by_default(self, main_window, qtbot):
+        main_window._editor.setPlainText("light test")
         qtbot.wait(500)
 
-        # Should be in dark mode by default
+        # Should be in light mode by default
+        assert main_window._darkMode is False
         html = main_window._preview.toHtml()
-        assert "#0b0f19" in html or "background" in html.lower()
+        assert "#ffffff" in html
+        assert "#0b0f19" not in html

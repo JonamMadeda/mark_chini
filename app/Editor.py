@@ -51,3 +51,6 @@ class MarkdownEditor(QWidget):
 
     def editorWidget(self):
         return self._editor
+
+    def setDarkMode(self, darkMode):
+        self._highlighter.setDarkMode(darkMode)

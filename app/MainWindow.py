@@ -1,14 +1,16 @@
 import os
-
-import os
 import sys
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QIcon, QPixmap
+import tempfile
+from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtGui import QAction, QDesktopServices, QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QSplitter,
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QSplitter,
     QPushButton, QComboBox, QLabel, QStatusBar, QToolBar,
-    QFileDialog, QMessageBox, QFrame, QSizePolicy,
+    QFileDialog, QMessageBox, QFrame, QSizePolicy, QProgressDialog,
 )
+
+from app import Updater
+from app.Updater import UpdateCheckWorker, UpdateDownloadWorker
 
 from app.Editor import MarkdownEditor
 from app.Preview import PreviewPanel
@@ -67,7 +69,7 @@ QPushButton#exportBtn:hover {
 QPushButton#exportBtn:pressed {
     background: #1D4ED8;
 }
-QPushButton#themeBtn, QPushButton#galleryBtn {
+QPushButton#themeBtn, QPushButton#galleryBtn, QPushButton#updateBtn {
     background: transparent;
     border: 1px solid #374151;
     border-radius: 6px;
@@ -77,7 +79,7 @@ QPushButton#themeBtn, QPushButton#galleryBtn {
     font-size: 16px;
     color: #f8fafc;
 }
-QPushButton#themeBtn:hover, QPushButton#galleryBtn:hover {
+QPushButton#themeBtn:hover, QPushButton#galleryBtn:hover, QPushButton#updateBtn:hover {
     background-color: #1f2937;
     border-color: #3B82F6;
 }
@@ -267,7 +269,7 @@ QPushButton#exportBtn:hover {
 QPushButton#exportBtn:pressed {
     background: #1D4ED8;
 }
-QPushButton#themeBtn, QPushButton#galleryBtn {
+QPushButton#themeBtn, QPushButton#galleryBtn, QPushButton#updateBtn {
     background: transparent;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
@@ -277,7 +279,7 @@ QPushButton#themeBtn, QPushButton#galleryBtn {
     font-size: 16px;
     color: #0f172a;
 }
-QPushButton#themeBtn:hover, QPushButton#galleryBtn:hover {
+QPushButton#themeBtn:hover, QPushButton#galleryBtn:hover, QPushButton#updateBtn:hover {
     background-color: #f8fafc;
     border-color: #2563EB;
 }
@@ -420,16 +422,21 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._currentFile = None
-        self._darkMode = True
+        self._darkMode = False
         self._previewTimer = QTimer()
         self._previewTimer.setSingleShot(True)
         self._previewTimer.setInterval(300)
         self._previewTimer.timeout.connect(self._updatePreview)
 
         self._pdfWorker = None
+        self._checkingUpdates = False
+        self._alive = True
+        self.destroyed.connect(lambda: setattr(self, "_alive", False))
         self._buildUI()
         self._connectSignals()
         self._applyTheme()
+        if not os.environ.get("MARK_CHINI_SKIP_UPDATE_CHECK"):
+            QTimer.singleShot(2500, lambda: self._checkForUpdates(silent=True))
 
     def _buildUI(self):
         self.setWindowTitle("mark_chini")
@@ -507,8 +514,8 @@ class MainWindow(QMainWindow):
         self._themeBtn = QPushButton()
         self._themeBtn.setObjectName("themeBtn")
         self._themeBtn.setCheckable(True)
-        self._themeBtn.setChecked(True)
-        self._themeBtn.setText("\u263E")
+        self._themeBtn.setChecked(False)
+        self._themeBtn.setText("\u25D0")
         self._themeBtn.setToolTip("Toggle dark/light mode")
         toolbar.addWidget(self._themeBtn)
 
@@ -517,6 +524,12 @@ class MainWindow(QMainWindow):
         self._galleryBtn.setText("\U0001F5BC")
         self._galleryBtn.setToolTip("Insert image")
         toolbar.addWidget(self._galleryBtn)
+
+        self._updateBtn = QPushButton()
+        self._updateBtn.setObjectName("updateBtn")
+        self._updateBtn.setText("\u21BB")
+        self._updateBtn.setToolTip("Check for updates")
+        toolbar.addWidget(self._updateBtn)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -588,6 +601,7 @@ class MainWindow(QMainWindow):
         self._exportBtn.clicked.connect(self._onExportPdf)
         self._themeBtn.toggled.connect(self._onToggleTheme)
         self._galleryBtn.clicked.connect(self._onInsertImage)
+        self._updateBtn.clicked.connect(lambda: self._checkForUpdates(silent=False))
 
         self._fontCombo.currentTextChanged.connect(self._onSettingChanged)
         self._sizeCombo.currentTextChanged.connect(self._onSettingChanged)
@@ -690,6 +704,7 @@ class MainWindow(QMainWindow):
 
     def _applyTheme(self):
         self.setStyleSheet(DARK_THEME if self._darkMode else LIGHT_THEME)
+        self._editor.setDarkMode(self._darkMode)
 
     def _onInsertImage(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -699,3 +714,112 @@ class MainWindow(QMainWindow):
         if path:
             mdLink = f"![{os.path.basename(path)}]({path})"
             self._editor.insertTextAtCursor(mdLink)
+
+    def _restoreStatus(self):
+        if self._currentFile:
+            self._fileStatusLabel.setText(os.path.basename(self._currentFile))
+        else:
+            self._fileStatusLabel.setText("No file open")
+
+    def _checkForUpdates(self, silent=True):
+        if self._checkingUpdates:
+            return
+        self._checkingUpdates = True
+        self._fileStatusLabel.setText("Checking for updates...")
+        worker = UpdateCheckWorker(parent=self)
+        worker.result.connect(lambda res: self._onUpdateResult(res, silent))
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(lambda: setattr(self, "_checkingUpdates", False))
+        worker.start()
+
+    def _onUpdateResult(self, res, silent):
+        if not getattr(self, "_alive", True):
+            return
+        if res.get("error"):
+            self._restoreStatus()
+            if not silent:
+                QMessageBox.warning(
+                    self, "Update Check",
+                    f"Could not check for updates:\n{res['error']}",
+                )
+            return
+        if not res.get("update"):
+            self._restoreStatus()
+            if not silent:
+                QMessageBox.information(
+                    self, "Up to Date",
+                    f"You are running the latest version ({Updater.APP_VERSION}).",
+                )
+            return
+        tag = res.get("tag", "")
+        box = QMessageBox(self)
+        box.setWindowTitle("Update Available")
+        box.setText(f"Version {tag} is available (you have {Updater.APP_VERSION}).")
+        box.setInformativeText("Download and install it now?")
+        installBtn = box.addButton(
+            "Download && Install", QMessageBox.ButtonRole.AcceptRole)
+        pageBtn = box.addButton(
+            "Release Page", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked == installBtn:
+            self._downloadAndInstall(res)
+        elif clicked == pageBtn:
+            QDesktopServices.openUrl(QUrl(res["page_url"]))
+            self._restoreStatus()
+        else:
+            self._restoreStatus()
+
+    def _downloadAndInstall(self, res):
+        asset_url = res.get("asset_url")
+        if not asset_url:
+            QDesktopServices.openUrl(QUrl(res["page_url"]))
+            self._restoreStatus()
+            return
+        dest = os.path.join(tempfile.gettempdir(), Updater.SETUP_ASSET_NAME)
+        self._updateProgress = QProgressDialog(
+            "Downloading update...", "Cancel", 0, 100, self)
+        self._updateProgress.setWindowTitle("Updating mark_chini")
+        self._updateProgress.setMinimumDuration(0)
+        self._updateProgress.setValue(0)
+        worker = UpdateDownloadWorker(asset_url, dest, parent=self)
+        worker.progress.connect(self._onDownloadProgress)
+        worker.finished.connect(self._onDownloadFinished)
+        worker.finished.connect(worker.deleteLater)
+        self._updateProgress.canceled.connect(worker.requestInterruption)
+        worker.start()
+
+    def _onDownloadProgress(self, downloaded, total):
+        if not getattr(self, "_alive", True):
+            return
+        if total and total > 0:
+            self._updateProgress.setMaximum(100)
+            self._updateProgress.setValue(int(downloaded * 100 / total))
+        else:
+            self._updateProgress.setMaximum(0)
+
+    def _onDownloadFinished(self, ok, message):
+        if not getattr(self, "_alive", True):
+            return
+        self._updateProgress.close()
+        if not ok:
+            if message != "cancelled":
+                QMessageBox.warning(
+                    self, "Update",
+                    f"Could not download the update:\n{message}",
+                )
+            self._restoreStatus()
+            return
+        try:
+            if sys.platform == "win32":
+                os.startfile(message)  # noqa: S606 -- local installer path
+            else:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(message))
+            QApplication.instance().quit()
+        except Exception as e:
+            QMessageBox.warning(
+                self, "Update",
+                f"Downloaded to {message} but could not launch it:\n{e}",
+            )
+            self._restoreStatus()

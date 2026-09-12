@@ -9,6 +9,7 @@ A desktop Markdown-to-PDF converter with live preview, built with PyQt6 and Typs
 - **Dark & Light Themes** – Toggle between a dark navy theme and a clean light theme
 - **Markdown Support** – Headings, bold, italic, code blocks, tables, fenced code, lists, blockquotes, images, links, and more
 - **Customizable** – Font family, font size, and margin settings
+- **Automatic Updates** – Checks GitHub releases on startup and offers one-click download & install of new versions (↻ button forces a check)
 
 ## Screenshot
 
