@@ -446,7 +446,21 @@ class MainWindow(QMainWindow):
         base = os.path.dirname(os.path.abspath(__file__))
         if getattr(sys, 'frozen', False):
             base = sys._MEIPASS
-        return os.path.join(base, "app", "logo.png") if getattr(sys, 'frozen', False) else os.path.join(base, "logo.png")
+            candidates = [
+                os.path.join(base, "app", "logo.png"),
+                os.path.join(base, "app", "icon.png"),
+                os.path.join(base, "app", "icon.ico"),
+            ]
+        else:
+            candidates = [
+                os.path.join(base, "logo.png"),
+                os.path.join(base, "icon.png"),
+                os.path.join(base, "icon.ico"),
+            ]
+        for path in candidates:
+            if os.path.isfile(path):
+                return path
+        return candidates[0]
 
     def _setAppIcon(self):
         path = self._iconPath()

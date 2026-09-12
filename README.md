@@ -48,8 +48,17 @@ To build a standalone executable:
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name "mark_chini" --add-data "app;app" --add-data "typst.exe;." --hidden-import markdown --hidden-import PyQt6 main.py
+pyinstaller --onefile --windowed --name "mark_chini" --icon "app/icon.ico" --add-data "app;app" --add-data "typst.exe;." --hidden-import markdown --hidden-import PyQt6 main.py
 ```
+
+> Icons: the OS/exe icon is `app/icon.ico` (multi-size ICO generated from
+> `app/logo.png`). After editing `app/logo.png`, regenerate it with:
+> ```bash
+> python -c "from PIL import Image; Image.open('app/logo.png').convert('RGBA').save('app/icon.ico', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+> ```
+> then rebuild the exe and the installer. Re-running the new
+> `mark_chini_setup` on top of an old install upgrades it in place and
+> refreshes the Start Menu/desktop shortcuts to the new icon.
 
 ## Development
 
