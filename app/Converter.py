@@ -139,6 +139,7 @@ class MarkdownConverter:
     def toTypstSource(markdownText, fontChoice="Sans-Serif", sizeChoice="Medium", marginChoice="Medium"):
         fonts = MarkdownConverter.FONT_MAP.get(fontChoice, MarkdownConverter.FONT_MAP["Sans-Serif"])
         font_list = ", ".join(f'"{f}"' for f in fonts)
+        size = MarkdownConverter.SIZE_MAP.get(sizeChoice, MarkdownConverter.SIZE_MAP["Medium"])
         body = MarkdownConverter._mdToTypst(markdownText)
         body = MarkdownConverter._sanitizeTypst(body)
         return f"""#set page(
@@ -149,7 +150,7 @@ class MarkdownConverter:
     align(center, text(9pt, fill: gray)[#pagenumber])
   }}
 )
-#set text(font: ({font_list}), size: 11pt)
+#set text(font: ({font_list}), size: {size})
 #set par(justify: true, leading: 0.8em, spacing: 2em)
 
 #show heading.where(level: 1): it => text(size: 1.6em, weight: "bold", fill: rgb("#111111"))[#it.body]
